@@ -76,7 +76,7 @@ describe('Parse.GeoPoint testing', () => {
       obj.set('index', i);
       objects.push(obj);
     });
-    Parse.Object.saveAll(objects).then((list) => {
+    Parse.Object.saveAll(objects).then(() => {
       var query = new Parse.Query(TestObject);
       var point = new Parse.GeoPoint(1.0, -1.0);
       query.withinRadians('location', point, 3.14);
@@ -85,8 +85,8 @@ describe('Parse.GeoPoint testing', () => {
       equal(results.length, 3);
       done();
     }, (err) => {
-      console.log(err);
-      fail();
+      fail("Couldn't query GeoPoint");
+      jfail(err)
     });
   });
 
@@ -99,7 +99,7 @@ describe('Parse.GeoPoint testing', () => {
       obj.set('index', i);
       objects.push(obj);
     });
-    Parse.Object.saveAll(objects, function(list) {
+    Parse.Object.saveAll(objects, function() {
       var query = new Parse.Query(TestObject);
       var point = new Parse.GeoPoint(1.0, -1.0);
       query.withinRadians('location', point, 3.14 * 0.5);
@@ -123,7 +123,7 @@ describe('Parse.GeoPoint testing', () => {
       obj.set('index', i);
       objects.push(obj);
     });
-    Parse.Object.saveAll(objects, function(list) {
+    Parse.Object.saveAll(objects, function() {
       var query = new Parse.Query(TestObject);
       var point = new Parse.GeoPoint(1.0, -1.0);
       query.withinRadians('location', point, 3.14 * 0.25);
@@ -154,10 +154,11 @@ describe('Parse.GeoPoint testing', () => {
   };
 
   it('geo max distance in km everywhere', (done) => {
-    makeSomeGeoPoints(function(list) {
+    makeSomeGeoPoints(function() {
       var sfo = new Parse.GeoPoint(37.6189722, -122.3748889);
       var query = new Parse.Query(TestObject);
-      query.withinKilometers('location', sfo, 4000.0);
+      // Honolulu is 4300 km away from SFO on a sphere ;)
+      query.withinKilometers('location', sfo, 4800.0);
       query.find({
         success: function(results) {
           equal(results.length, 3);
@@ -168,7 +169,7 @@ describe('Parse.GeoPoint testing', () => {
   });
 
   it('geo max distance in km california', (done) => {
-    makeSomeGeoPoints(function(list) {
+    makeSomeGeoPoints(function() {
       var sfo = new Parse.GeoPoint(37.6189722, -122.3748889);
       var query = new Parse.Query(TestObject);
       query.withinKilometers('location', sfo, 3700.0);
@@ -184,7 +185,7 @@ describe('Parse.GeoPoint testing', () => {
   });
 
   it('geo max distance in km bay area', (done) => {
-    makeSomeGeoPoints(function(list) {
+    makeSomeGeoPoints(function() {
       var sfo = new Parse.GeoPoint(37.6189722, -122.3748889);
       var query = new Parse.Query(TestObject);
       query.withinKilometers('location', sfo, 100.0);
@@ -199,7 +200,7 @@ describe('Parse.GeoPoint testing', () => {
   });
 
   it('geo max distance in km mid peninsula', (done) => {
-    makeSomeGeoPoints(function(list) {
+    makeSomeGeoPoints(function() {
       var sfo = new Parse.GeoPoint(37.6189722, -122.3748889);
       var query = new Parse.Query(TestObject);
       query.withinKilometers('location', sfo, 10.0);
@@ -213,10 +214,10 @@ describe('Parse.GeoPoint testing', () => {
   });
 
   it('geo max distance in miles everywhere', (done) => {
-    makeSomeGeoPoints(function(list) {
+    makeSomeGeoPoints(function() {
       var sfo = new Parse.GeoPoint(37.6189722, -122.3748889);
       var query = new Parse.Query(TestObject);
-      query.withinMiles('location', sfo, 2500.0);
+      query.withinMiles('location', sfo, 2600.0);
       query.find({
         success: function(results) {
           equal(results.length, 3);
@@ -227,7 +228,7 @@ describe('Parse.GeoPoint testing', () => {
   });
 
   it('geo max distance in miles california', (done) => {
-    makeSomeGeoPoints(function(list) {
+    makeSomeGeoPoints(function() {
       var sfo = new Parse.GeoPoint(37.6189722, -122.3748889);
       var query = new Parse.Query(TestObject);
       query.withinMiles('location', sfo, 2200.0);
@@ -243,10 +244,11 @@ describe('Parse.GeoPoint testing', () => {
   });
 
   it('geo max distance in miles bay area', (done) => {
-    makeSomeGeoPoints(function(list) {
+    makeSomeGeoPoints(function() {
       var sfo = new Parse.GeoPoint(37.6189722, -122.3748889);
       var query = new Parse.Query(TestObject);
-      query.withinMiles('location', sfo, 75.0);
+      // 100km is 62 miles...
+      query.withinMiles('location', sfo, 62.0);
       query.find({
         success: function(results) {
           equal(results.length, 1);
@@ -258,7 +260,7 @@ describe('Parse.GeoPoint testing', () => {
   });
 
   it('geo max distance in miles mid peninsula', (done) => {
-    makeSomeGeoPoints(function(list) {
+    makeSomeGeoPoints(function() {
       var sfo = new Parse.GeoPoint(37.6189722, -122.3748889);
       var query = new Parse.Query(TestObject);
       query.withinMiles('location', sfo, 10.0);
@@ -285,6 +287,49 @@ describe('Parse.GeoPoint testing', () => {
     }).then((results) => {
       equal(results.length, 1);
       done();
+    });
+  });
+
+  it('supports a sub-object with a geo point', done => {
+    var point = new Parse.GeoPoint(44.0, -11.0);
+    var obj = new TestObject();
+    obj.set('subobject', { location: point });
+    obj.save(null, {
+      success: function() {
+        var query = new Parse.Query(TestObject);
+        query.find({
+          success: function(results) {
+            equal(results.length, 1);
+            var pointAgain = results[0].get('subobject')['location'];
+            ok(pointAgain);
+            equal(pointAgain.latitude, 44.0);
+            equal(pointAgain.longitude, -11.0);
+            done();
+          }
+        });
+      }
+    });
+  });
+
+  it('supports array of geo points', done => {
+    var point1 = new Parse.GeoPoint(44.0, -11.0);
+    var point2 = new Parse.GeoPoint(22.0, -55.0);
+    var obj = new TestObject();
+    obj.set('locations', [ point1, point2 ]);
+    obj.save(null, {
+      success: function() {
+        var query = new Parse.Query(TestObject);
+        query.find({
+          success: function(results) {
+            equal(results.length, 1);
+            var locations = results[0].get('locations');
+            expect(locations.length).toEqual(2);
+            expect(locations[0]).toEqual(point1);
+            expect(locations[1]).toEqual(point2);
+            done();
+          }
+        });
+      }
     });
   });
 });
